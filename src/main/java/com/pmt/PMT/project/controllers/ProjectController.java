@@ -1,11 +1,16 @@
 package com.pmt.PMT.project.controllers;
 
+import com.pmt.PMT.project.dto.ProjectCreateRequest;
+import com.pmt.PMT.project.dto.ProjectResponse;
+import com.pmt.PMT.project.dto.TaskResponse;
 import com.pmt.PMT.project.models.Project;
 import com.pmt.PMT.project.models.ProjectMembership;
 import com.pmt.PMT.project.services.ProjectMembershipService;
 import com.pmt.PMT.project.services.ProjectService;
+import com.pmt.PMT.project.services.TaskService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -23,19 +28,21 @@ public class ProjectController {
     @Autowired
     private ProjectMembershipService projectMembershipService;
 
+    @Autowired
+    private TaskService taskService;
+
     @GetMapping
-    public List<Project> getAll() {
-        return projectService.findAll();
+    public Object getAll(Authentication auth) {
+        return projectService.listByUser(auth);
     }
 
     @GetMapping("/{id}")
-    public Project getById(@PathVariable UUID id) {
+    public ProjectResponse getById(@PathVariable UUID id) {
         return projectService.getById(id);
     }
-
     @PostMapping
-    public Project create(@RequestBody Project project) {
-        return projectService.create(project);
+    public ProjectResponse create(@RequestBody ProjectCreateRequest body, Authentication auth) {
+        return projectService.create(body, auth);
     }
 
     @GetMapping("/{projectId}/members")
@@ -69,5 +76,10 @@ public class ProjectController {
     public void removeMember(@PathVariable UUID projectId,
                              @PathVariable UUID membershipId) {
         projectMembershipService.delete(membershipId);
+    }
+
+    @GetMapping("/{projectId}/tasks")
+    public List<TaskResponse> getTasksByProject(@PathVariable UUID projectId) {
+        return taskService.getByProjectId(projectId);
     }
 }

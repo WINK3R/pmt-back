@@ -2,9 +2,6 @@ package com.pmt.PMT.project.models;
 
 import jakarta.persistence.*;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -12,7 +9,7 @@ import java.util.UUID;
 public class Task {
 
     public enum Priority { LOW, MEDIUM, HIGH }
-    public enum Status { TODO, IN_PROGRESS, CANCELED, DONE }
+    public enum Status { TODO, IN_PROGRESS, CANCELED, COMPLETED }
 
     @Id
     @GeneratedValue
@@ -28,17 +25,11 @@ public class Task {
     @Column(columnDefinition = "text")
     private String description;
 
-    @ElementCollection
-    @CollectionTable(
-            name = "task_labels",
-            joinColumns = @JoinColumn(name = "task_id")
-    )
-    @Column(name = "label", nullable = false)
-    private List<String> labels = new ArrayList<>();
-
+    @Column(name = "label")
+    private String label;
 
     @Column(name = "due_date")
-    private LocalDate dueDate;
+    private Instant dueDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -80,11 +71,11 @@ public class Task {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public LocalDate getDueDate() { return dueDate; }
-    public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
+    public Instant getDueDate() { return dueDate; }
+    public void setDueDate(Instant dueDate) { this.dueDate = dueDate; }
 
-    public List<String> getLabels() { return labels; }
-    public void setLabels(List<String> labels) { this.labels = labels; }
+    public String getLabel() { return label; }
+    public void setLabel(String label) { this.label = label; }
 
     public Priority getPriority() { return priority; }
     public void setPriority(Priority priority) { this.priority = priority; }

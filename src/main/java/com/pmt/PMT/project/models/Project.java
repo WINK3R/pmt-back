@@ -1,6 +1,8 @@
 package com.pmt.PMT.project.models;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -16,6 +18,9 @@ public class Project {
     @Column(nullable = false)
     private String name;
 
+    @Column()
+    private String tag;
+
     @Column(columnDefinition = "text")
     private String description;
 
@@ -26,7 +31,8 @@ public class Project {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
-    @Column(name = "created_at", nullable = false)
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     public Project() {}
@@ -48,4 +54,7 @@ public class Project {
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public String getTag() { return tag; }
+    public void setTag(String tag) { this.tag = tag; }
 }

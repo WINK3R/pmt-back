@@ -1,0 +1,14 @@
+-- Backfill existing NULLs
+UPDATE USERS
+SET
+    "PROFILE_IMAGE_URL" = COALESCE("PROFILE_IMAGE_URL", '/static/avatars/default.png'),
+    "PROFILE_IMAGE_KEY" = COALESCE("PROFILE_IMAGE_KEY", 'avatars/default.png')
+WHERE "PROFILE_IMAGE_URL" IS NULL OR "PROFILE_IMAGE_KEY" IS NULL;
+
+-- Set DB defaults for future INSERTs
+ALTER TABLE USERS
+    ALTER COLUMN "PROFILE_IMAGE_URL" SET DEFAULT '/static/avatars/default.png';
+
+ALTER TABLE USERS
+    ALTER COLUMN "PROFILE_IMAGE_KEY" SET DEFAULT 'avatars/default.png';
+

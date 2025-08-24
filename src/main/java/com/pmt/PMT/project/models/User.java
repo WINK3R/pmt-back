@@ -1,4 +1,5 @@
 package com.pmt.PMT.project.models;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
@@ -23,13 +24,31 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @JsonIgnore
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @JsonIgnore
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "profile_image_url", length = 512)
+    private String profileImageUrl;
+
+    @JsonIgnore
+    @Column(name = "profile_image_key", length = 512)
+    private String profileImageKey;
+
     public User() {}
+
+    @PrePersist
+    public void onCreate() {
+        if (createdAt == null) createdAt = Instant.now();
+        if (profileImageUrl == null || profileImageUrl.isBlank()) {
+            profileImageUrl = "/static/avatars/default.png";
+            profileImageKey = "avatars/default.png";
+        }
+    }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -45,4 +64,10 @@ public class User {
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public String getProfileImageKey() { return  profileImageKey; }
+    public void setProfileImageKey(String profileImageKey) { this.profileImageKey = profileImageKey; }
+
+    public void setProfileImageUrl(String imageUrl) { this.profileImageUrl = imageUrl; }
+    public String getProfileImageUrl() { return profileImageUrl; }
 }

@@ -8,7 +8,6 @@ import com.pmt.PMT.project.security.JwtService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -63,5 +62,32 @@ public class AuthService {
         resp.email = req.email;
         return resp;
     }
+
+    private User getUserFromAccessToken(String token) {
+        if (token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
+        String username = jwt.extractUsername(token);
+        if (username == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        }
+        return users.findByEmail(username)
+            .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "User not found for token"
+            ));
+    }
+
+    public MeResponse getUserDataFromToken(String token) {
+        User user = getUserFromAccessToken(token);
+        return new MeResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getCreatedAt(),
+                user.getProfileImageUrl()
+        );
+    }
+
+
 
 }
