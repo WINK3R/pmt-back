@@ -1,10 +1,12 @@
 package com.pmt.PMT.project.controllers;
 
 import com.pmt.PMT.project.dto.ProjectCreateRequest;
+import com.pmt.PMT.project.dto.ProjectMemberResponse;
 import com.pmt.PMT.project.dto.ProjectResponse;
 import com.pmt.PMT.project.dto.TaskResponse;
 import com.pmt.PMT.project.models.Project;
 import com.pmt.PMT.project.models.ProjectMembership;
+import com.pmt.PMT.project.models.User;
 import com.pmt.PMT.project.services.ProjectMembershipService;
 import com.pmt.PMT.project.services.ProjectService;
 import com.pmt.PMT.project.services.TaskService;
@@ -13,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,41 +46,40 @@ public class ProjectController {
         return projectService.create(body, auth);
     }
 
+    @GetMapping("/{projectId}/tasks")
+    public List<TaskResponse> getTasksByProject(@PathVariable UUID projectId) {
+        return taskService.getByProjectId(projectId);
+    }
+
     @GetMapping("/{projectId}/members")
-    public List<ProjectMembership> getMembers(@PathVariable UUID projectId) {
-        Project project = new Project();
-        project.setId(projectId);
-        return projectMembershipService.getByProject(project);
+    public List<ProjectMemberResponse> getMembers(@PathVariable UUID projectId) {
+        return projectMembershipService.getMemberResponsesByProjectId(projectId);
     }
 
     @GetMapping("/{projectId}/members/by-role/{role}")
-    public List<ProjectMembership> getMembersByRole(@PathVariable UUID projectId,
-                                                    @PathVariable ProjectMembership.Role role) {
-        Project project = new Project();
-        project.setId(projectId);
-        return projectMembershipService.getByProjectAndRole(project, role);
+    public List<ProjectMemberResponse> getMembersByRole(@PathVariable UUID projectId,
+                                                        @PathVariable ProjectMembership.Role role) {
+        return projectMembershipService.getMemberResponsesByProjectIdAndRole(projectId, role);
     }
 
     @PostMapping("/{projectId}/members")
-    public ProjectMembership addMember(@PathVariable UUID projectId,
-                                       @RequestBody ProjectMembership membership) {
+    public ProjectMembership addMember(
+            @PathVariable UUID projectId,
+            @RequestParam UUID userId,
+            @RequestParam ProjectMembership.Role role
+    ) {
         Project project = new Project();
         project.setId(projectId);
-        membership.setProject(project);
 
-        if (membership.getJoinedAt() == null) membership.setJoinedAt(Instant.now());
+        User user = new User();
+        user.setId(userId);
 
-        return projectMembershipService.create(membership);
+        return projectMembershipService.createMembership(project, user, role);
     }
 
     @DeleteMapping("/{projectId}/members/{membershipId}")
     public void removeMember(@PathVariable UUID projectId,
                              @PathVariable UUID membershipId) {
         projectMembershipService.delete(membershipId);
-    }
-
-    @GetMapping("/{projectId}/tasks")
-    public List<TaskResponse> getTasksByProject(@PathVariable UUID projectId) {
-        return taskService.getByProjectId(projectId);
     }
 }

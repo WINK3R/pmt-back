@@ -5,6 +5,7 @@ import com.pmt.PMT.project.dto.ProjectListItem;
 import com.pmt.PMT.project.dto.ProjectResponse;
 import com.pmt.PMT.project.dto.UserSummary;
 import com.pmt.PMT.project.models.Project;
+import com.pmt.PMT.project.models.ProjectMembership;
 import com.pmt.PMT.project.models.Task;
 import com.pmt.PMT.project.models.User;
 import com.pmt.PMT.project.repositories.ProjectRepository;
@@ -27,6 +28,8 @@ public class ProjectService {
     private ProjectRepository projectRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private ProjectMembershipService projectMembershipService;
 
     @Autowired
     private TaskRepository taskRepository;
@@ -86,7 +89,7 @@ public class ProjectService {
         p.setCreatedBy(creator);
 
         Project saved = projectRepository.save(p);
-
+        projectMembershipService.createMembership(p, creator, ProjectMembership.Role.ADMIN);
         return toResponse(saved);
     }
 
