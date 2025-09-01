@@ -34,15 +34,24 @@ public class ProjectService {
     @Autowired
     private TaskRepository taskRepository;
 
-    public List<ProjectResponse> list() {
+    public List<ProjectListItem> list() {
         return projectRepository.findAll().stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    public ProjectResponse getById(UUID id) {
-        Project p = projectRepository.findWithCreatedBy(id)
+    public ProjectResponse getByIdForMember(UUID id, Authentication auth) {
+        var user = userRepository.findByEmail(auth.getName())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        var p = projectRepository.findWithCreatedBy(id)
                 .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+
+        if (projectMembershipService
+                .getMemberResponsesByProjectId(id)
+                .stream().noneMatch(m -> m.user().id().equals(user.getId()))) {
+            throw new EntityNotFoundException("Project not found");
+        }
         return toDetail(p);
     }
 
@@ -51,7 +60,7 @@ public class ProjectService {
         var user = userRepository.findByEmail(auth.getName())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return projectRepository.findByCreatedByOrderByCreatedAtDesc(user)
+        return projectRepository.findByMemberOrderByCreatedAtDesc(user)
                 .stream()
                 .map(p -> {
                     long total = taskRepository.countByProjectId(p.getId());
@@ -77,7 +86,7 @@ public class ProjectService {
     }
 
     @Transactional
-    public ProjectResponse create(ProjectCreateRequest req, Authentication auth) {
+    public ProjectListItem create(ProjectCreateRequest req, Authentication auth) {
         User creator = userRepository.findByEmail(auth.getName())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + auth.getName()));
 
@@ -89,12 +98,15 @@ public class ProjectService {
         p.setCreatedBy(creator);
 
         Project saved = projectRepository.save(p);
-        projectMembershipService.createMembership(p, creator, ProjectMembership.Role.ADMIN);
+        projectMembershipService.createMembership(p, creator, ProjectMembership.Role.OWNER);
         return toResponse(saved);
     }
 
-    private ProjectResponse toResponse(Project p) {
-        return new ProjectResponse(
+    private ProjectListItem toResponse(Project p) {
+        long total = taskRepository.countByProjectId(p.getId());
+        long completed = taskRepository.countByProjectIdAndStatus(p.getId(), Task.Status.COMPLETED);
+        long open = Math.max(0, total - completed);
+        return new ProjectListItem(
                 p.getId(),
                 p.getName(),
                 p.getDescription(),
@@ -105,7 +117,9 @@ public class ProjectService {
                         p.getCreatedBy().getId(),
                         p.getCreatedBy().getUsername(),
                         p.getCreatedBy().getProfileImageUrl()
-                )
+                ),
+                open,
+                completed
         );
     }
 

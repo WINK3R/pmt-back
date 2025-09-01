@@ -11,7 +11,7 @@ import java.util.UUID;
 )
 public class ProjectMembership {
 
-    public enum Role { ADMIN, MEMBER, OBSERVER }
+    public enum Role { ADMIN, MEMBER, OBSERVER, OWNER }
 
     @Id
     @GeneratedValue

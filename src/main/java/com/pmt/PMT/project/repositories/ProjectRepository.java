@@ -14,19 +14,23 @@ import java.util.UUID;
 public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     @Query("""
-
-            select p from Project p
-         join fetch p.createdBy
-         where p.id = :id
-         """)
-    Optional<Project> findWithCreatedBy(@Param("id") UUID id);
+        select distinct p
+        from Project p
+        join fetch p.createdBy
+        where exists (
+            select 1 from ProjectMembership pm
+            where pm.project = p and pm.user = :user
+        )
+        order by p.createdAt desc
+    """)
+    List<Project> findByMemberOrderByCreatedAtDesc(@Param("user") User user);
 
     @Query("""
-         select p from Project p
-         join fetch p.createdBy
-         order by p.createdAt desc
-         """)
-    List<Project> findAllWithCreatedByOrderByCreatedAtDesc();
+        select p from Project p
+        join fetch p.createdBy
+        where p.id = :id
+    """)
+    Optional<Project> findWithCreatedBy(@Param("id") UUID id);
 
     List<Project> findByCreatedByOrderByCreatedAtDesc(User user);
     }

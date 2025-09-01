@@ -1,12 +1,10 @@
 package com.pmt.PMT.project.controllers;
 
-import com.pmt.PMT.project.dto.ProjectCreateRequest;
-import com.pmt.PMT.project.dto.ProjectMemberResponse;
-import com.pmt.PMT.project.dto.ProjectResponse;
-import com.pmt.PMT.project.dto.TaskResponse;
+import com.pmt.PMT.project.dto.*;
 import com.pmt.PMT.project.models.Project;
 import com.pmt.PMT.project.models.ProjectMembership;
 import com.pmt.PMT.project.models.User;
+import com.pmt.PMT.project.services.InvitationService;
 import com.pmt.PMT.project.services.ProjectMembershipService;
 import com.pmt.PMT.project.services.ProjectService;
 import com.pmt.PMT.project.services.TaskService;
@@ -31,6 +29,8 @@ public class ProjectController {
 
     @Autowired
     private TaskService taskService;
+    @Autowired
+    private InvitationService invitationService;
 
     @GetMapping
     public Object getAll(Authentication auth) {
@@ -38,11 +38,11 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}")
-    public ProjectResponse getById(@PathVariable UUID id) {
-        return projectService.getById(id);
+    public ProjectResponse getById(@PathVariable UUID id, Authentication auth) {
+        return projectService.getByIdForMember(id, auth);
     }
     @PostMapping
-    public ProjectResponse create(@RequestBody ProjectCreateRequest body, Authentication auth) {
+    public ProjectListItem create(@RequestBody ProjectCreateRequest body, Authentication auth) {
         return projectService.create(body, auth);
     }
 
@@ -54,6 +54,11 @@ public class ProjectController {
     @GetMapping("/{projectId}/members")
     public List<ProjectMemberResponse> getMembers(@PathVariable UUID projectId) {
         return projectMembershipService.getMemberResponsesByProjectId(projectId);
+    }
+
+    @GetMapping("/{projectId}/invitations")
+    public List<InvitationResponse> getInvitations(@PathVariable UUID projectId) {
+        return invitationService.getInvitationsByProject(projectId);
     }
 
     @GetMapping("/{projectId}/members/by-role/{role}")
@@ -82,4 +87,13 @@ public class ProjectController {
                              @PathVariable UUID membershipId) {
         projectMembershipService.delete(membershipId);
     }
+
+    @PutMapping("/{projectId}/members/{membershipId}/role")
+    public ProjectMemberResponse changeMemberRole(@PathVariable UUID projectId,
+                                                  @PathVariable UUID membershipId,
+                                                  @RequestBody RoleUpdateRequest body) {
+        return projectMembershipService.changeRole(projectId, membershipId, body.role);
+    }
+
+
 }

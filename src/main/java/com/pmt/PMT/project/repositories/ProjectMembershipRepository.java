@@ -7,10 +7,12 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface ProjectMembershipRepository extends JpaRepository<ProjectMembership, UUID> {
+    boolean existsByProjectIdAndUserId(UUID projectId, UUID userId);
 
     @Query("""
            select pm from ProjectMembership pm
@@ -28,4 +30,7 @@ public interface ProjectMembershipRepository extends JpaRepository<ProjectMember
            """)
     List<ProjectMembership> findByProjectIdAndRoleWithUser(@Param("projectId") UUID projectId,
                                                            @Param("role") ProjectMembership.Role role);
+
+    Optional<ProjectMembership> findByIdAndProjectId(UUID membershipId, UUID projectId);
+
 }

@@ -7,7 +7,15 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "invitations",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"token"})
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_invitation_project_invited",
+                        columnNames = {"project_id", "invited_user_id"}),
+                @UniqueConstraint(name = "uk_invitation_token", columnNames = {"token"})
+        },
+        indexes = {
+                @Index(name = "idx_inv_project", columnList = "project_id"),
+                @Index(name = "idx_inv_invited_user", columnList = "invited_user_id")
+        }
 )
 public class Invitation {
 
@@ -21,8 +29,9 @@ public class Invitation {
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
-    @Column(name = "email_invited", nullable = false)
-    private String emailInvited;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invited_user_id", nullable = false)
+    private User invited;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "inviter_user_id", nullable = false)
@@ -49,8 +58,8 @@ public class Invitation {
     public Project getProject() { return project; }
     public void setProject(Project project) { this.project = project; }
 
-    public String getEmailInvited() { return emailInvited; }
-    public void setEmailInvited(String emailInvited) { this.emailInvited = emailInvited; }
+    public User getInvited() { return invited; }
+    public void setInvited(User invited) { this.invited = invited; }
 
     public User getInviter() { return inviter; }
     public void setInviter(User inviter) { this.inviter = inviter; }
