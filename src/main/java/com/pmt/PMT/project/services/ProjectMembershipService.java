@@ -1,12 +1,11 @@
 package com.pmt.PMT.project.services;
 
 import com.pmt.PMT.project.dto.ProjectMemberResponse;
-import com.pmt.PMT.project.mappers.UserMapper;
+import com.pmt.PMT.project.mappers.ProjectMembershipMapper;
 import com.pmt.PMT.project.models.Project;
 import com.pmt.PMT.project.models.ProjectMembership;
 import com.pmt.PMT.project.models.User;
 import com.pmt.PMT.project.repositories.ProjectMembershipRepository;
-import com.pmt.PMT.project.repositories.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,23 +16,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import static com.pmt.PMT.project.mappers.InvitationMapper.toResponse;
 
 @Service
 public class ProjectMembershipService {
 
     @Autowired
     private ProjectMembershipRepository projectMembershipRepository;
-    @Autowired
-    private ProjectMembershipRepository membershipRepo;
 
-    public List<ProjectMembership> findAll() {
-        return projectMembershipRepository.findAll();
-    }
-
-    public ProjectMembership getById(UUID id) {
-        return projectMembershipRepository.findById(id).orElseThrow();
-    }
 
     @Transactional
     public ProjectMembership createMembership(Project project, User user, ProjectMembership.Role role) {
@@ -53,12 +42,7 @@ public class ProjectMembershipService {
     public List<ProjectMemberResponse> getMemberResponsesByProjectId(UUID projectId) {
         return projectMembershipRepository.findByProjectIdWithUser(projectId)
                 .stream()
-                .map(pm -> new ProjectMemberResponse(
-                        pm.getId(),
-                        pm.getRole(),
-                        pm.getJoinedAt(),
-                        UserMapper.toSummary(pm.getUser())
-                ))
+                .map(ProjectMembershipMapper::toResponse)
                 .toList();
     }
 
@@ -67,12 +51,7 @@ public class ProjectMembershipService {
                                                                             ProjectMembership.Role role) {
         return projectMembershipRepository.findByProjectIdAndRoleWithUser(projectId, role)
                 .stream()
-                .map(pm -> new ProjectMemberResponse(
-                        pm.getId(),
-                        pm.getRole(),
-                        pm.getJoinedAt(),
-                        UserMapper.toSummary(pm.getUser())
-                ))
+                .map(ProjectMembershipMapper::toResponse)
                 .toList();
     }
 
@@ -105,8 +84,7 @@ public class ProjectMembershipService {
 
         membership.setRole(newRole);
         projectMembershipRepository.save(membership);
-
-        return new ProjectMemberResponse(membership.getId(), membership.getRole(), membership.getJoinedAt(), UserMapper.toSummary(membership.getUser()));
+        return ProjectMembershipMapper.toResponse(membership);
     }
 
 

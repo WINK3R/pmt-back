@@ -5,7 +5,6 @@ import com.pmt.PMT.project.mappers.InvitationMapper;
 import com.pmt.PMT.project.mappers.UserMapper;
 import com.pmt.PMT.project.models.*;
 import com.pmt.PMT.project.repositories.InvitationRepository;
-import com.pmt.PMT.project.repositories.ProjectMembershipRepository;
 import com.pmt.PMT.project.repositories.ProjectRepository;
 import com.pmt.PMT.project.repositories.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -32,10 +31,6 @@ public class InvitationService {
     private UserRepository userRepository;
     @Autowired
     private ProjectMembershipService projectMembershipService;
-
-    public List<Invitation> findAll() {
-        return invitationRepository.findAll();
-    }
 
     @Transactional
     public List<InvitationResponse> listByUser(Authentication auth) {
@@ -102,7 +97,7 @@ public class InvitationService {
                 .orElseThrow(() -> new EntityNotFoundException("Invitation not found or not accessible"));
 
         ProjectMembership pm = projectMembershipService
-                .createMembershipIfNotExists(inv.getProject(), current, ProjectMembership.Role.MEMBER);
+                .createMembershipIfNotExists(inv.getProject(), current, ProjectMembership.Role.OBSERVER);
 
         inv.setStatus(Invitation.Status.ACCEPTED);
         inv.setAcceptedAt(Instant.now());

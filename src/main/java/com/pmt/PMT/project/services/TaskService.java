@@ -5,6 +5,7 @@ import com.pmt.PMT.project.dto.TaskResponse;
 import com.pmt.PMT.project.dto.UserSummary;
 import com.pmt.PMT.project.models.Project;
 import com.pmt.PMT.project.models.Task;
+import com.pmt.PMT.project.models.TaskHistory;
 import com.pmt.PMT.project.models.User;
 import com.pmt.PMT.project.repositories.ProjectRepository;
 import com.pmt.PMT.project.repositories.TaskRepository;
@@ -12,8 +13,10 @@ import com.pmt.PMT.project.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,14 +29,8 @@ public class TaskService {
     private ProjectRepository projectRepository;
     @Autowired
     private UserRepository userRepository;
-
-    public List<Task> findAll() {
-        return taskRepository.findAll();
-    }
-
-    public Task getById(UUID id) {
-        return taskRepository.findById(id).orElseThrow();
-    }
+    @Autowired
+    private TaskHistoryService taskHistoryService;
 
     public List<TaskResponse> getByProjectId(UUID projectId) {
         return taskRepository.findByProjectId(projectId)
@@ -47,33 +44,69 @@ public class TaskService {
         return taskRepository.save(task);
     }
 
+    @Transactional
     public TaskResponse update(UUID id, TaskCreateRequest req, Authentication auth) {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        if (req.title() != null) task.setTitle(req.title());
+        // who updates
+        String username = auth.getName();
+        User updatedBy = userRepository.findByEmail(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // snapshot old values for history
+        String oldTitle       = task.getTitle();
+        String oldDescription = task.getDescription();
+        var    oldDueDate     = task.getDueDate();
+        var    oldPriority    = task.getPriority();
+        var    oldStatus      = task.getStatus();
+        var    oldLabel       = task.getLabel();
+        UUID   oldProjectId   = task.getProject()  != null ? task.getProject().getId()  : null;
+        UUID   oldAssigneeId  = task.getAssignee() != null ? task.getAssignee().getId() : null;
+
+        // apply incoming changes
+        if (req.title() != null)       task.setTitle(req.title());
         if (req.description() != null) task.setDescription(req.description());
-        if (req.dueDate() != null) task.setDueDate(req.dueDate());
-        if (req.priority() != null) task.setPriority(req.priority());
-        if (req.status() != null) task.setStatus(req.status());
-        if (req.label() != null) task.setLabel(req.label());
+        if (req.dueDate() != null)     task.setDueDate(req.dueDate());
+        if (req.priority() != null)    task.setPriority(req.priority());
+        if (req.status() != null)      task.setStatus(req.status());
+        if (req.label() != null)       task.setLabel(req.label());
+
         if (req.projectId() != null) {
             Project project = projectRepository.findById(req.projectId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid project ID"));
             task.setProject(project);
         }
+
         if (req.assigneeId() != null) {
+            // null allowed to unassign
             User assignee = userRepository.findById(req.assigneeId()).orElse(null);
             task.setAssignee(assignee);
         }
-        String username = auth.getName();
-        User updatedBy = userRepository.findByEmail(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
         task.setUpdatedBy(updatedBy);
+        Instant now = Instant.now();
+        task.setUpdatedAt(now);
 
-        task.setUpdatedAt(Instant.now());
-
+        // save task
         Task updated = taskRepository.save(task);
+
+        // build and persist history entries (only for changed fields)
+        var history = new ArrayList<TaskHistory>();
+        taskHistoryService.addIfChanged(history, updated, updatedBy, now, "title",       oldTitle,       updated.getTitle());
+        taskHistoryService.addIfChanged(history, updated, updatedBy, now, "description", oldDescription, updated.getDescription());
+        taskHistoryService.addIfChanged(history, updated, updatedBy, now, "dueDate",     oldDueDate,     updated.getDueDate());
+        taskHistoryService.addIfChanged(history, updated, updatedBy, now, "priority",    oldPriority,    updated.getPriority());
+        taskHistoryService.addIfChanged(history, updated, updatedBy, now, "status",      oldStatus,      updated.getStatus());
+        taskHistoryService.addIfChanged(history, updated, updatedBy, now, "label",       oldLabel,       updated.getLabel());
+
+        UUID newProjectId  = updated.getProject()  != null ? updated.getProject().getId()  : null;
+        UUID newAssigneeId = updated.getAssignee() != null ? updated.getAssignee().getId() : null;
+        taskHistoryService.addIfChanged(history, updated, updatedBy, now, "projectId",  oldProjectId,  newProjectId);
+        taskHistoryService.addIfChanged(history, updated, updatedBy, now, "assigneeId", oldAssigneeId, newAssigneeId);
+
+        taskHistoryService.saveAll(history);
+
         return new TaskResponse(updated);
     }
 
@@ -83,8 +116,12 @@ public class TaskService {
         Project project = projectRepository.findById(req.projectId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid project ID"));
 
-        User assignee = userRepository.findById(req.assigneeId())
-                .orElse(null);
+        User assignee = null;
+        if (req.assigneeId() != null) {
+            assignee = userRepository.findById(req.assigneeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid assignee ID"));
+        }
+
 
         User createdBy = userRepository.findById(req.createdById())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid createdBy ID"));
@@ -125,9 +162,9 @@ public class TaskService {
                 t.getStatus(),
                 t.getCreatedAt(),
                 t.getUpdatedAt(),
-                new UserSummary(t.getCreatedBy()),
-                new UserSummary(t.getUpdatedBy()),
-                new UserSummary(t.getAssignee()),
+                t.getCreatedBy() != null ? new UserSummary(t.getCreatedBy()) : null,
+                t.getUpdatedBy() != null ? new UserSummary(t.getUpdatedBy()) : null,
+                t.getAssignee() != null ? new UserSummary(t.getAssignee()) : null,
                 t.getProject() != null ? t.getProject().getId() : null,
                 t.getLabel()
         );
