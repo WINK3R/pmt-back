@@ -3,10 +3,8 @@ package com.pmt.PMT.project.services;
 import com.pmt.PMT.project.dto.TaskCreateRequest;
 import com.pmt.PMT.project.dto.TaskResponse;
 import com.pmt.PMT.project.dto.UserSummary;
-import com.pmt.PMT.project.models.Project;
-import com.pmt.PMT.project.models.Task;
-import com.pmt.PMT.project.models.TaskHistory;
-import com.pmt.PMT.project.models.User;
+import com.pmt.PMT.project.models.*;
+import com.pmt.PMT.project.repositories.ProjectMembershipRepository;
 import com.pmt.PMT.project.repositories.ProjectRepository;
 import com.pmt.PMT.project.repositories.TaskRepository;
 import com.pmt.PMT.project.repositories.UserRepository;
@@ -31,6 +29,8 @@ public class TaskService {
     private UserRepository userRepository;
     @Autowired
     private TaskHistoryService taskHistoryService;
+    @Autowired
+    private ProjectMembershipRepository projectMembershipRepository;
 
     public List<TaskResponse> getByProjectId(UUID projectId) {
         return taskRepository.findByProjectId(projectId)
@@ -152,6 +152,7 @@ public class TaskService {
         return toResponse(task);
     }
 
+
     private TaskResponse toResponse(Task t) {
         return new TaskResponse(
                 t.getId(),
@@ -170,5 +171,34 @@ public class TaskService {
         );
     }
 
+    @Transactional
+    public TaskResponse delete(UUID id, Authentication auth) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Task not found"));
+
+        if (task.getProject() == null) {
+            throw new IllegalStateException("Task is not associated with any project");
+        }
+
+        String username = auth.getName();
+        User user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        UUID projectId = task.getProject().getId();
+
+        ProjectMembership membership = projectMembershipRepository.findByProjectIdWithUser(projectId).stream()
+                .filter(pm -> pm.getUser().getId().equals(user.getId()))
+                .findFirst()
+                .orElseThrow(() -> new SecurityException("You are not a member of this project"));
+
+        ProjectMembership.Role role = membership.getRole();
+
+        if (role != ProjectMembership.Role.OWNER && role != ProjectMembership.Role.ADMIN) {
+            throw new SecurityException("Only OWNER or ADMINISTRATOR can delete tasks");
+        }
+
+        taskRepository.delete(task);
+        return new TaskResponse(task);
+    }
 
 }

@@ -1,6 +1,10 @@
 package com.pmt.PMT.project.models;
 
+import com.pmt.PMT.project.dto.HistoryValue;
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -14,6 +18,7 @@ public class TaskHistory {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "task_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Task task;
 
     @ManyToOne(fetch = FetchType.LAZY)

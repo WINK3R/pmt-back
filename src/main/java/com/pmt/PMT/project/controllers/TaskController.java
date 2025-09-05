@@ -34,4 +34,9 @@ public class TaskController {
                                Authentication authentication) {
         return taskService.update(id, req, authentication);
     }
+
+    @DeleteMapping("/{id}")
+    public TaskResponse delete(@PathVariable UUID id, Authentication authentication) {
+        return taskService.delete(id, authentication);
+    }
 }

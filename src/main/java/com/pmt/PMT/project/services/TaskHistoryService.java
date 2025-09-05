@@ -1,10 +1,13 @@
 package com.pmt.PMT.project.services;
 
+import com.pmt.PMT.project.dto.HistoryValue;
 import com.pmt.PMT.project.dto.TaskHistoryResponse;
+import com.pmt.PMT.project.dto.UserSummary;
 import com.pmt.PMT.project.models.Task;
 import com.pmt.PMT.project.models.TaskHistory;
 import com.pmt.PMT.project.models.User;
 import com.pmt.PMT.project.repositories.TaskHistoryRepository;
+import com.pmt.PMT.project.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +21,8 @@ public class TaskHistoryService {
 
     @Autowired
     private TaskHistoryRepository taskHistoryRepository;
+    @Autowired
+    private UserRepository userRepository;
 
     public TaskHistory create(TaskHistory history) {
         return taskHistoryRepository.save(history);
@@ -26,8 +31,29 @@ public class TaskHistoryService {
     public List<TaskHistoryResponse> findByTaskId(UUID taskId) {
         return taskHistoryRepository.findByTaskIdOrderByChangedAtDesc(taskId)
                 .stream()
-                .map(TaskHistoryResponse::new)
+                .map(h -> new TaskHistoryResponse(
+                        h,
+                        mapValue(h.getField(), h.getOldValue()),
+                        mapValue(h.getField(), h.getNewValue())
+                ))
                 .toList();
+    }
+
+    private HistoryValue mapValue(String field, String rawValue) {
+        if (rawValue == null) return null;
+
+        if ("assigneeId".equals(field)) {
+            try {
+                UUID id = UUID.fromString(rawValue);
+                User user = userRepository.findById(id).orElse(null);
+                return user != null
+                        ? HistoryValue.ofUser(new UserSummary(user))
+                        : HistoryValue.ofText(rawValue);
+            } catch (IllegalArgumentException e) {
+                return HistoryValue.ofText(rawValue);
+            }
+        }
+        return HistoryValue.ofText(rawValue);
     }
 
     public void saveAll(List<TaskHistory> entries) {
