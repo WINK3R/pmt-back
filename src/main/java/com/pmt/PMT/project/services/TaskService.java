@@ -1,6 +1,6 @@
 package com.pmt.PMT.project.services;
 
-import com.pmt.PMT.project.dto.TaskCreateRequest;
+import com.pmt.PMT.project.dto.TaskMinimalRequest;
 import com.pmt.PMT.project.dto.TaskResponse;
 import com.pmt.PMT.project.dto.UserSummary;
 import com.pmt.PMT.project.models.*;
@@ -39,13 +39,8 @@ public class TaskService {
                 .toList();
     }
 
-
-    public Task create(Task task) {
-        return taskRepository.save(task);
-    }
-
     @Transactional
-    public TaskResponse update(UUID id, TaskCreateRequest req, Authentication auth) {
+    public TaskResponse update(UUID id, TaskMinimalRequest req, Authentication auth) {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
@@ -110,9 +105,7 @@ public class TaskService {
         return new TaskResponse(updated);
     }
 
-
-
-    public TaskResponse create(TaskCreateRequest req) {
+    public TaskResponse create(TaskMinimalRequest req) {
         Project project = projectRepository.findById(req.projectId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid project ID"));
 
@@ -151,7 +144,6 @@ public class TaskService {
         Task task = taskRepository.findById(id).orElseThrow();
         return toResponse(task);
     }
-
 
     private TaskResponse toResponse(Task t) {
         return new TaskResponse(

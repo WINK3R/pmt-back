@@ -1,6 +1,6 @@
 package com.pmt.PMT.project.controllers;
 
-import com.pmt.PMT.project.dto.TaskCreateRequest;
+import com.pmt.PMT.project.dto.TaskMinimalRequest;
 import com.pmt.PMT.project.dto.TaskResponse;
 import com.pmt.PMT.project.services.TaskService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,13 +24,13 @@ public class TaskController {
     }
 
     @PostMapping
-    public TaskResponse create(@RequestBody TaskCreateRequest req) {
+    public TaskResponse create(@RequestBody TaskMinimalRequest req) {
         return taskService.create(req);
     }
 
     @PatchMapping("/{id}")
     public TaskResponse update(@PathVariable UUID id,
-                               @RequestBody TaskCreateRequest req,
+                               @RequestBody TaskMinimalRequest req,
                                Authentication authentication) {
         return taskService.update(id, req, authentication);
     }

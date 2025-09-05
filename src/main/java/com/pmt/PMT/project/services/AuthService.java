@@ -27,28 +27,28 @@ public class AuthService {
     }
 
     public void register(RegisterRequest req) {
-        if (users.existsByEmail(req.email)) {
+        if (users.existsByEmail(req.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already in use");
         }
-        if (users.existsByUsername(req.username)) {
+        if (users.existsByUsername(req.username())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username is already in use");
         }
 
         User u = new User();
-        u.setUsername(req.username);
-        u.setEmail(req.email);
-        u.setPasswordHash(encoder.encode(req.password)); // HASH ICI
+        u.setUsername(req.username());
+        u.setEmail(req.email());
+        u.setPasswordHash(encoder.encode(req.password()));
         u.setCreatedAt(Instant.now());
         users.save(u);
     }
 
     public AuthResponse login(LoginRequest req) {
-        var user = users.findByEmail(req.email)
+        var user = users.findByEmail(req.email())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED, "Invalid email or password"));
         try {
             authManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(req.email, req.password)
+                    new UsernamePasswordAuthenticationToken(req.email(), req.password())
             );
         } catch (AuthenticationException ex) {
             throw new ResponseStatusException(
@@ -59,7 +59,7 @@ public class AuthService {
 
         var resp = new AuthResponse();
         resp.accessToken = token;
-        resp.email = req.email;
+        resp.email = req.email();
         return resp;
     }
 

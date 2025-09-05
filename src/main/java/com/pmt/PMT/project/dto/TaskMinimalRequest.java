@@ -1,10 +1,10 @@
 package com.pmt.PMT.project.dto;
 
 import com.pmt.PMT.project.models.Task;
+
 import java.time.Instant;
 import java.util.UUID;
-
-public record TaskCreateRequest(
+public record TaskMinimalRequest(
         String title,
         String description,
         String label,
