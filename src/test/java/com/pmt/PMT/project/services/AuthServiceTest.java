@@ -45,7 +45,6 @@ class AuthServiceTest {
         user.setCreatedAt(Instant.now());
     }
 
-    // ---------- register ----------
     @Test
     void register_shouldSaveUser_whenValid() {
         RegisterRequest req = new RegisterRequest("john", "john@test.com", "pass");
@@ -78,7 +77,6 @@ class AuthServiceTest {
         assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
-    // ---------- login ----------
     @Test
     void login_shouldReturnAuthResponse_whenValid() {
         LoginRequest req = new LoginRequest("john@test.com", "pass");
@@ -110,10 +108,21 @@ class AuthServiceTest {
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatusCode());
     }
 
-    // ---------- getUserDataFromToken ----------
     @Test
     void getUserDataFromToken_shouldReturnMeResponse() {
         String token = "Bearer valid";
+        when(jwt.extractUsername("valid")).thenReturn("john@test.com");
+        when(userRepository.findByEmail("john@test.com")).thenReturn(Optional.of(user));
+
+        MeResponse res = authService.getUserDataFromToken(token);
+
+        assertEquals("john@test.com", res.getEmail());
+        assertEquals("john", res.getUsername());
+    }
+
+    @Test
+    void getUserDataFromTokenWithoutBearer_shouldReturnMeResponse() {
+        String token = "valid";
         when(jwt.extractUsername("valid")).thenReturn("john@test.com");
         when(userRepository.findByEmail("john@test.com")).thenReturn(Optional.of(user));
 

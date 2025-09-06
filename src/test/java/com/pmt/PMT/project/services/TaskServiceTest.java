@@ -26,6 +26,7 @@ class TaskServiceTest {
     @InjectMocks
     private TaskService taskService;
 
+    @Mock private TaskHistoryService taskHistoryService;
     @Mock private TaskRepository taskRepository;
     @Mock private ProjectRepository projectRepository;
     @Mock private UserRepository userRepository;
@@ -241,13 +242,9 @@ class TaskServiceTest {
         mockUser.setId(UUID.randomUUID());
         mockUser.setEmail("test@example.com");
 
-        Project mockProject = new Project();
-        mockProject.setId(projectId);
-
         when(authentication.getName()).thenReturn("test@example.com");
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(mockUser));
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        when(projectRepository.findById(projectId)).thenReturn(Optional.of(mockProject));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         TaskResponse result = taskService.update(taskId, req, authentication);
@@ -256,7 +253,6 @@ class TaskServiceTest {
         assertEquals("new-description", result.description());
         assertEquals(Task.Status.COMPLETED, result.status());
         assertEquals(Task.Priority.MEDIUM, result.priority());
-        assertEquals(projectId, result.projectId());
     }
 
     @Test
@@ -293,7 +289,6 @@ class TaskServiceTest {
         when(authentication.getName()).thenReturn("test@example.com");
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(mockUser));
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
-        when(projectRepository.findById(projectId)).thenReturn(Optional.of(mockProject));
         when(userRepository.findById(assigneeId)).thenReturn(Optional.of(assignee));
         when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -306,6 +301,111 @@ class TaskServiceTest {
         assertEquals(assigneeId, result.assignee().id());
     }
 
+    @Test
+    void update_shouldHandleAllNullValues() {
+        TaskMinimalRequest req = new TaskMinimalRequest(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                projectId,
+                null,
+                createdById,
+                updatedById,
+                null,
+                null
+        );
+
+        User mockUser = new User();
+        mockUser.setId(UUID.randomUUID());
+        mockUser.setEmail("test@example.com");
+
+        when(authentication.getName()).thenReturn("test@example.com");
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(mockUser));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TaskResponse result = taskService.update(taskId, req, authentication);
+
+        assertNotNull(result);
+        assertEquals(taskId, result.id());
+        assertEquals("title", result.title());
+        assertEquals("desc", result.description());
+        assertEquals(Task.Status.TODO, result.status());
+    }
+
+    @Test
+    void update_shouldHandleOldNullAssigned() {
+        task.setAssignee(null);
+        UUID newAssigneeId = UUID.randomUUID();
+
+        TaskMinimalRequest req = new TaskMinimalRequest(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                projectId,
+                newAssigneeId,
+                createdById,
+                updatedById,
+                null,
+                null
+        );
+
+        User mockUser = new User();
+        mockUser.setId(UUID.randomUUID());
+        mockUser.setEmail("test@example.com");
+
+        User assignee = new User();
+        assignee.setId(newAssigneeId);
+        assignee.setEmail("assignee@test.com");
+
+        when(authentication.getName()).thenReturn("test@example.com");
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(mockUser));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(userRepository.findById(newAssigneeId)).thenReturn(Optional.of(assignee));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TaskResponse result = taskService.update(taskId, req, authentication);
+
+        assertNotNull(result.assignee());
+        assertEquals(newAssigneeId, result.assignee().id());
+    }
+
+    @Test
+    void update_shouldHandleNewNullAssigned() {
+        TaskMinimalRequest req = new TaskMinimalRequest(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                projectId,
+                null,
+                createdById,
+                updatedById,
+                null,
+                null
+        );
+
+        User mockUser = new User();
+        mockUser.setId(UUID.randomUUID());
+        mockUser.setEmail("test@example.com");
+
+        when(authentication.getName()).thenReturn("test@example.com");
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(mockUser));
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TaskResponse result = taskService.update(taskId, req, authentication);
+
+        assertNull(result.assignee());
+    }
 
     @Test
     void getExpanded_shouldReturnResponse() {
@@ -321,6 +421,22 @@ class TaskServiceTest {
         ProjectMembership membership = new ProjectMembership();
         membership.setUser(user);
         membership.setRole(ProjectMembership.Role.OWNER);
+        when(authentication.getName()).thenReturn("user@test.com");
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
+        when(projectMembershipRepository.findByProjectIdWithUser(projectId)).thenReturn(List.of(membership));
+
+        TaskResponse result = taskService.delete(taskId, authentication);
+
+        assertEquals(taskId, result.id());
+        verify(taskRepository).delete(task);
+    }
+
+    @Test
+    void delete_shouldDeleteTask_whenAdmin() {
+        ProjectMembership membership = new ProjectMembership();
+        membership.setUser(user);
+        membership.setRole(ProjectMembership.Role.ADMIN);
         when(authentication.getName()).thenReturn("user@test.com");
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
         when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
@@ -375,4 +491,62 @@ class TaskServiceTest {
 
         assertThrows(SecurityException.class, () -> taskService.delete(taskId, authentication));
     }
+
+    @Test
+    void toResponse_shouldReturnUserSummaries_whenAllRelationsPresent() {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        Project project = new Project();
+        project.setId(UUID.randomUUID());
+
+        User createdBy = new User();
+        createdBy.setId(UUID.randomUUID());
+        User updatedBy = new User();
+        updatedBy.setId(UUID.randomUUID());
+        User assignee = new User();
+        assignee.setId(UUID.randomUUID());
+
+        Task t = new Task();
+        t.setId(id);
+        t.setTitle("Task 1");
+        t.setDescription("desc");
+        t.setPriority(Task.Priority.HIGH);
+        t.setStatus(Task.Status.TODO);
+        t.setCreatedAt(Instant.now());
+        t.setUpdatedAt(Instant.now());
+        t.setCreatedBy(createdBy);
+        t.setUpdatedBy(updatedBy);
+        t.setAssignee(assignee);
+        t.setProject(project);
+        t.setLabel("label");
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(t));
+
+        TaskResponse response = taskService.getExpanded(taskId);
+
+        assertNotNull(response.createdBy());
+        assertNotNull(response.updatedBy());
+        assertNotNull(response.assignee());
+        assertNotNull(response.projectId());
+    }
+
+    @Test
+    void toResponse_shouldReturnNulls_whenRelationsMissing() {
+        // Arrange
+        UUID id = UUID.randomUUID();
+        Task t = new Task();
+        t.setId(id);
+        t.setTitle("Task 2");
+        t.setDescription("desc");
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(t));
+
+        TaskResponse response = taskService.getExpanded(taskId);
+
+        assertNull(response.createdBy());
+        assertNull(response.updatedBy());
+        assertNull(response.assignee());
+        assertNull(response.projectId());
+    }
+
 }

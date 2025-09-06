@@ -35,18 +35,16 @@ class UserServiceTest {
     @Test
     void findAll_shouldReturnAllUsers() {
         when(userRepository.findAll()).thenReturn(Collections.singletonList(user));
-
         List<User> users = userService.findAll();
-
         assertThat(users).hasSize(1);
         assertThat(users.getFirst().getUsername()).isEqualTo("Alice");
+
         verify(userRepository).findAll();
     }
 
     @Test
     void create_shouldSaveAndReturnUser() {
         when(userRepository.save(user)).thenReturn(user);
-
         User saved = userService.create(user);
 
         assertThat(saved.getUsername()).isEqualTo("Alice");
@@ -68,7 +66,6 @@ class UserServiceTest {
     void getById_shouldThrowIfNotFound() {
         UUID id = UUID.randomUUID();
         when(userRepository.findById(id)).thenReturn(Optional.empty());
-
         assertThrows(Exception.class, () -> userService.getById(id));
 
         verify(userRepository).findById(id);

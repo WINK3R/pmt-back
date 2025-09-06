@@ -57,7 +57,7 @@ public class TaskHistoryService {
     }
 
     public void saveAll(List<TaskHistory> entries) {
-        if (entries == null || entries.isEmpty()) return;
+        if (entries.isEmpty()) return;
         taskHistoryRepository.saveAll(entries);
     }
 

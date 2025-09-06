@@ -44,49 +44,34 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        // who updates
         String username = auth.getName();
         User updatedBy = userRepository.findByEmail(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // snapshot old values for history
         String oldTitle       = task.getTitle();
         String oldDescription = task.getDescription();
         var    oldDueDate     = task.getDueDate();
         var    oldPriority    = task.getPriority();
         var    oldStatus      = task.getStatus();
         var    oldLabel       = task.getLabel();
-        UUID   oldProjectId   = task.getProject()  != null ? task.getProject().getId()  : null;
         UUID   oldAssigneeId  = task.getAssignee() != null ? task.getAssignee().getId() : null;
 
-        // apply incoming changes
         if (req.title() != null)       task.setTitle(req.title());
-        if (req.description() != null) task.setDescription(req.description());
-        if (req.dueDate() != null)     task.setDueDate(req.dueDate());
+        if (req.description() != null)  task.setDescription(req.description());
+        task.setDueDate(req.dueDate());
         if (req.priority() != null)    task.setPriority(req.priority());
         if (req.status() != null)      task.setStatus(req.status());
         if (req.label() != null)       task.setLabel(req.label());
 
-        if (req.projectId() != null) {
-            Project project = projectRepository.findById(req.projectId())
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid project ID"));
-            task.setProject(project);
-        }
-
-        if (req.assigneeId() != null) {
-            // null allowed to unassign
-            User assignee = userRepository.findById(req.assigneeId()).orElse(null);
-            task.setAssignee(assignee);
-        }
+        User assignee = userRepository.findById(req.assigneeId()).orElse(null);
+        task.setAssignee(assignee);
 
         task.setUpdatedBy(updatedBy);
         Instant now = Instant.now();
         task.setUpdatedAt(now);
 
-        // save task
         Task updated = taskRepository.save(task);
 
-        // build and persist history entries (only for changed fields)
         var history = new ArrayList<TaskHistory>();
         taskHistoryService.addIfChanged(history, updated, updatedBy, now, "title",       oldTitle,       updated.getTitle());
         taskHistoryService.addIfChanged(history, updated, updatedBy, now, "description", oldDescription, updated.getDescription());
@@ -95,9 +80,7 @@ public class TaskService {
         taskHistoryService.addIfChanged(history, updated, updatedBy, now, "status",      oldStatus,      updated.getStatus());
         taskHistoryService.addIfChanged(history, updated, updatedBy, now, "label",       oldLabel,       updated.getLabel());
 
-        UUID newProjectId  = updated.getProject()  != null ? updated.getProject().getId()  : null;
         UUID newAssigneeId = updated.getAssignee() != null ? updated.getAssignee().getId() : null;
-        taskHistoryService.addIfChanged(history, updated, updatedBy, now, "projectId",  oldProjectId,  newProjectId);
         taskHistoryService.addIfChanged(history, updated, updatedBy, now, "assigneeId", oldAssigneeId, newAssigneeId);
 
         taskHistoryService.saveAll(history);

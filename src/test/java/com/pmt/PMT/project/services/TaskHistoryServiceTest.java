@@ -141,25 +141,51 @@ class TaskHistoryServiceTest {
     }
 
     @Test
+    void entry_shouldUseProvidedInstant_whenAtNotNull() {
+        Instant now = Instant.parse("2025-01-01T12:00:00Z");
+        TaskHistory h = service.entry(task, user, now, "title", "old", "new");
+
+        assertEquals(now, h.getChangedAt());
+    }
+
+    @Test
+    void entry_shouldUseCurrentInstant_whenAtIsNull() {
+        TaskHistory h = service.entry(task, user, null, "title", "old", "new");
+
+        assertNotNull(h.getChangedAt());
+        assertTrue(h.getChangedAt().isBefore(Instant.now().plusSeconds(1)));
+    }
+
+    @Test
     void val_shouldCoverAllBranches() {
         UUID id = UUID.randomUUID();
         Instant now = Instant.now();
 
         assertNull(TaskHistoryService.val(null));
+
         assertEquals(id.toString(), TaskHistoryService.val(id));
+
         assertEquals(now.toString(), TaskHistoryService.val(now));
+
         assertEquals(Task.Status.TODO.name(), TaskHistoryService.val(Task.Status.TODO));
 
         Task t = new Task();
         t.setId(id);
         assertEquals(id.toString(), TaskHistoryService.val(t));
 
+        Task tNoId = new Task();
+        assertEquals(String.valueOf(tNoId), TaskHistoryService.val(tNoId));
+
         User u = new User();
         u.setId(id);
         assertEquals(id.toString(), TaskHistoryService.val(u));
 
+        User uNoId = new User();
+        assertEquals(String.valueOf(uNoId), TaskHistoryService.val(uNoId));
+
         assertEquals("hello", TaskHistoryService.val("hello"));
     }
+
 
     @Test
     void addIfChanged_shouldAddEntryWhenDifferent() {

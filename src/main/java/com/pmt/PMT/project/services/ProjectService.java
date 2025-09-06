@@ -50,7 +50,7 @@ public class ProjectService {
         if (projectMembershipService
                 .getMemberResponsesByProjectId(id)
                 .stream().noneMatch(m -> m.user().id().equals(user.getId()))) {
-            throw new EntityNotFoundException("Project not found");
+            throw new EntityNotFoundException("Membership not found");
         }
         return toDetail(p);
     }
@@ -125,9 +125,7 @@ public class ProjectService {
 
     private ProjectResponse toDetail(Project p) {
         User u = p.getCreatedBy();
-        UserSummary summary = (u == null)
-                ? null
-                : new UserSummary(u.getId(), u.getEmail(), u.getUsername());
+        UserSummary summary = new UserSummary(u.getId(), u.getEmail(), u.getUsername());
         return new ProjectResponse(
                 p.getId(),
                 p.getName(),
