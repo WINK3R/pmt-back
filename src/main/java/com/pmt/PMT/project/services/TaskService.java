@@ -49,8 +49,7 @@ public class TaskService {
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Task not found"));
 
-        String username = auth.getName();
-        User updatedBy = userRepository.findByEmail(username)
+        User updatedBy = userRepository.findByEmail(auth.getName())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         String oldTitle       = task.getTitle();
@@ -67,7 +66,10 @@ public class TaskService {
         if (req.priority() != null)     task.setPriority(req.priority());
         if (req.status() != null)       task.setStatus(req.status());
         if (req.label() != null)        task.setLabel(req.label());
-        if (req.assigneeId() != null) {
+
+        if (req.assigneeId() == null) {
+            task.setAssignee(null);
+        } else {
             User assignee = userRepository.findById(req.assigneeId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid assignee ID"));
             task.setAssignee(assignee);
@@ -89,7 +91,6 @@ public class TaskService {
 
         UUID newAssigneeId = updated.getAssignee() != null ? updated.getAssignee().getId() : null;
         taskHistoryService.addIfChanged(history, updated, updatedBy, now, "assigneeId", oldAssigneeId, newAssigneeId);
-
         taskHistoryService.saveAll(history);
 
         boolean assigneeChanged = !Objects.equals(oldAssigneeId, newAssigneeId);
@@ -111,6 +112,7 @@ public class TaskService {
         }
         return new TaskResponse(updated);
     }
+
 
     public TaskResponse create(TaskMinimalRequest req) {
         Project project = projectRepository.findById(req.projectId())

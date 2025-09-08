@@ -4,6 +4,7 @@ import com.pmt.PMT.project.models.Task;
 
 import java.time.Instant;
 import java.util.UUID;
+
 public record TaskMinimalRequest(
         String title,
         String description,
