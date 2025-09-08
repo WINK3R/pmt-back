@@ -62,9 +62,13 @@ public class TaskService {
         if (req.priority() != null)    task.setPriority(req.priority());
         if (req.status() != null)      task.setStatus(req.status());
         if (req.label() != null)       task.setLabel(req.label());
-
-        User assignee = userRepository.findById(req.assigneeId()).orElse(null);
-        task.setAssignee(assignee);
+        if (req.assigneeId() == null) {
+            task.setAssignee(null);
+        } else {
+            User assignee = userRepository.findById(req.assigneeId())
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid assignee ID"));
+            task.setAssignee(assignee);
+        }
 
         task.setUpdatedBy(updatedBy);
         Instant now = Instant.now();
