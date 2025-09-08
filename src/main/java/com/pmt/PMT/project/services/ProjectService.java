@@ -1,9 +1,6 @@
 package com.pmt.PMT.project.services;
 
-import com.pmt.PMT.project.dto.ProjectCreateRequest;
-import com.pmt.PMT.project.dto.ProjectListItem;
-import com.pmt.PMT.project.dto.ProjectResponse;
-import com.pmt.PMT.project.dto.UserSummary;
+import com.pmt.PMT.project.dto.*;
 import com.pmt.PMT.project.models.Project;
 import com.pmt.PMT.project.models.ProjectMembership;
 import com.pmt.PMT.project.models.Task;
@@ -54,6 +51,38 @@ public class ProjectService {
         }
         return toDetail(p);
     }
+
+    @Transactional
+    public ProjectResponse update(UUID projectId, ProjectMinimalRequest req, Authentication auth) {
+        User user = userRepository.findByEmail(auth.getName())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project not found"));
+
+        var membership = projectMembershipService
+                .getMemberResponsesByProjectId(projectId)
+                .stream()
+                .filter(m -> m.user().id().equals(user.getId()))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("User is not a member of this project"));
+        ProjectMembership.Role role = membership.role();
+        if (role != ProjectMembership.Role.OWNER && role != ProjectMembership.Role.ADMIN) {
+            throw new SecurityException("Only OWNER or ADMIN can update the project");
+        }
+        if (req.name() != null) {
+            project.setName(req.name());
+        }
+        if (req.description() != null) {
+            project.setDescription(req.description());
+        }
+        if (req.tag() != null) {
+            project.setTag(req.tag());
+        }
+        Project updated = projectRepository.save(project);
+        return toDetail(updated);
+    }
+
 
     @Transactional
     public List<ProjectListItem> listByUser(Authentication auth) {

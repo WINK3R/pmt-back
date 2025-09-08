@@ -46,6 +46,13 @@ public class ProjectController {
         return projectService.create(body, auth);
     }
 
+    @PatchMapping("/{id}")
+    public ProjectResponse update(@PathVariable UUID id,
+                               @RequestBody ProjectMinimalRequest req,
+                               Authentication authentication) {
+        return projectService.update(id, req, authentication);
+    }
+
     @GetMapping("/{projectId}/tasks")
     public List<TaskResponse> getTasksByProject(@PathVariable UUID projectId) {
         return taskService.getByProjectId(projectId);
