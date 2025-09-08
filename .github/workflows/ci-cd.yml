@@ -36,7 +36,7 @@ jobs:
       - name: Generate JaCoCo report (XML + HTML)
         run: ./mvnw -B -Dspring.profiles.active=test jacoco:report
 
-      # === Tableau résumé des tests ===
+      # === Tableau résumé des tests (table only) ===
       - name: Job Summary - Tests table only
         if: always()
         shell: bash
@@ -66,36 +66,61 @@ jobs:
             echo "| $total | $passed | $failures | $errors | $skipped | $time |"
           } >> $GITHUB_STEP_SUMMARY
 
-      # === Tableau de couverture (vert à partir de 60) ===
-      - name: Coverage Summary (JaCoCo)
+      # === Couverture: Branches & Instructions (seuil 60%) ===
+      - name: Coverage Summary - Branches & Instructions
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          XML="target/site/jacoco/jacoco.xml"
+          if [ ! -f "$XML" ]; then
+            echo "jacoco.xml not found at $XML"; exit 1
+          fi
+
+          get_cov () {
+            local TYPE="$1"
+            # somme des missed/covered sur tous les <counter type="TYPE" .../>
+            read MISSED COVERED < <(grep -o "type=\"$TYPE\"[^>]*/>" "$XML" | \
+              sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\1 \2/' | \
+              awk '{m+=$1;c+=$2} END {print (m?m:0), (c?c:0)}')
+            local TOTAL=$((MISSED + COVERED))
+            if [ "$TOTAL" -eq 0 ]; then
+              echo "100 0 0 0"  # 100%, covered=0, missed=0, total=0
+            else
+              local PCT=$(( 100 * COVERED / TOTAL ))
+              echo "$PCT $COVERED $MISSED $TOTAL"
+            fi
+          }
+
+          read BR_PCT BR_C BR_M BR_T < <(get_cov "BRANCH")
+          read IN_PCT IN_C IN_M IN_T < <(get_cov "INSTRUCTION")
+
+          echo "### Coverage (Branches & Instructions)" >> $GITHUB_STEP_SUMMARY
+          {
+            echo ""
+            echo "| Metric        | % | Covered | Missed | Total |"
+            echo "|---------------|--:|--------:|-------:|------:|"
+            echo "| **Branches**      | ${BR_PCT}% | ${BR_C} | ${BR_M} | ${BR_T} |"
+            echo "| **Instructions**  | ${IN_PCT}% | ${IN_C} | ${IN_M} | ${IN_T} |"
+          } >> $GITHUB_STEP_SUMMARY
+
+          FAIL=0
+          if [ "$BR_PCT" -lt 60 ]; then echo "Branches < 60%"; FAIL=1; fi
+          if [ "$IN_PCT" -lt 60 ]; then echo "Instructions < 60%"; FAIL=1; fi
+          [ "$FAIL" -eq 0 ] || exit 1
+
+      # (Optionnel) Tableau global CodeCoverageSummary pour aperçu (badge unique)
+      - name: Coverage Table (irongut)
         if: always()
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
           filename: '**/target/site/jacoco/jacoco.xml'
-          badge: true
+          badge: false           # on évite le badge unique (basé lignes)
           format: 'markdown'
           output: 'both'
           hide_complexity: true
           indicators: true
-          thresholds: '60 60'  # rouge <60%, vert >=60%
-
-      # === Fail si couverture lignes < 60% ===
-      - name: Enforce minimum coverage (60%)
-        if: always()
-        shell: bash
-        run: |
-          xml=$(cat target/site/jacoco/jacoco.xml)
-          read m c < <(echo "$xml" | grep -o 'type="LINE"[^>]*/>' | \
-            sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\1 \2/' | \
-            awk '{m+=$1;c+=$2} END {print m, c}')
-          total=$((m+c))
-          cov=$(awk -v c="${c:-0}" -v t="${total:-0}" 'BEGIN{ if(t==0){print 100}else{printf "%d", (100*c)/t} }')
-          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
-          echo "**Line coverage = ${cov}%** (covered=${c:-0}, missed=${m:-0}, total=${total:-0})" >> $GITHUB_STEP_SUMMARY
-          if [ "${cov}" -lt 60 ]; then
-            echo "Coverage < 60% => fail"
-            exit 1
-          fi
+          thresholds: '60 60'    # mapping interne: Branches / Lines (sans effet sur notre enforcement)
 
       - name: Upload JaCoCo HTML report
         uses: actions/upload-artifact@v4
