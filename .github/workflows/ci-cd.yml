@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 env:
   IMAGE_NAME: ${{ vars.IMAGE_NAMESPACE || github.repository_owner }}/pmt-backend
 
@@ -24,23 +29,46 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
+      # --- Tests + rapports ---
       - name: Build & test
         run: ./mvnw -B -Dspring.profiles.active=test -DskipTests=false test
 
       - name: Generate JaCoCo report (XML + HTML)
-        run: ./mvnw -B -Dspring.profiles.active=test -DskipTests=false test jacoco:report
+        run: ./mvnw -B -Dspring.profiles.active=test jacoco:report
 
-      - name: Tests Summary (JUnit)
-        uses: mikepenz/action-junit-report@v4
+      # === Tableau résumé des tests ===
+      - name: Job Summary - Tests table only
         if: always()
-        with:
-          report_paths: '**/target/surefire-reports/TEST-*.xml'
-          check_name: "JUnit Test Results"
-          detailed_summary: true
-          include_passed: true
-          require_tests: true
+        shell: bash
+        run: |
+          set -eo pipefail
+          shopt -s globstar nullglob
+          files=( **/target/surefire-reports/TEST-*.xml )
+          echo "### Tests Summary" >> $GITHUB_STEP_SUMMARY
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "_No test reports found._" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          total=0; failures=0; errors=0; skipped=0; time=0
+          for f in "${files[@]}"; do
+            t=$(grep -o 'tests="[0-9]\+"'     "$f" | head -1 | tr -cd '0-9'); total=$(( total + t ))
+            fa=$(grep -o 'failures="[0-9]\+"'  "$f" | head -1 | tr -cd '0-9'); failures=$(( failures + fa ))
+            er=$(grep -o 'errors="[0-9]\+"'    "$f" | head -1 | tr -cd '0-9'); errors=$(( errors + er ))
+            sk=$(grep -o 'skipped="[0-9]\+"'   "$f" | head -1 | tr -cd '0-9'); skipped=$(( skipped + sk ))
+            ti=$(grep -o 'time="[^"]\+"' "$f" | head -1 | sed -E 's/time="([^"]+)"/\1/'); \
+            time=$(awk -v a="$time" -v b="${ti:-0}" 'BEGIN{printf "%.3f", a+b}')
+          done
+          passed=$(( total - failures - errors - skipped ))
+          {
+            echo ""
+            echo "| Total | Passed | Failed | Errors | Skipped | Time (s) |"
+            echo "|-----:|------:|------:|------:|-------:|--------:|"
+            echo "| $total | $passed | $failures | $errors | $skipped | $time |"
+          } >> $GITHUB_STEP_SUMMARY
 
+      # === Tableau de couverture (vert à partir de 60) ===
       - name: Coverage Summary (JaCoCo)
+        if: always()
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
           filename: '**/target/site/jacoco/jacoco.xml'
@@ -49,20 +77,24 @@ jobs:
           output: 'both'
           hide_complexity: true
           indicators: true
-          thresholds: '55 60'
+          thresholds: '60 60'  # rouge <60%, vert >=60%
 
+      # === Fail si couverture lignes < 60% ===
       - name: Enforce minimum coverage (60%)
+        if: always()
+        shell: bash
         run: |
           xml=$(cat target/site/jacoco/jacoco.xml)
-          missed=$(echo "$xml" | grep -o 'type="LINE"[^>]*/>' | \
-                   sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\1 \2/' | \
-                   awk '{m+=$1;c+=$2} END {print m, c}')
-          m=$(echo $missed | awk '{print $1}'); c=$(echo $missed | awk '{print $2}')
+          read m c < <(echo "$xml" | grep -o 'type="LINE"[^>]*/>' | \
+            sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\1 \2/' | \
+            awk '{m+=$1;c+=$2} END {print m, c}')
           total=$((m+c))
-          cov=$(( 100*(c) / (total==0?1:total) ))
-          echo "Line coverage = ${cov}% (covered=${c}, missed=${m}, total=${total})" >> $GITHUB_STEP_SUMMARY
-          if [ "$cov" -lt 60 ]; then
-            echo "Cov < 60% => fail"; exit 1
+          cov=$(awk -v c="${c:-0}" -v t="${total:-0}" 'BEGIN{ if(t==0){print 100}else{printf "%d", (100*c)/t} }')
+          echo "### Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "**Line coverage = ${cov}%** (covered=${c:-0}, missed=${m:-0}, total=${total:-0})" >> $GITHUB_STEP_SUMMARY
+          if [ "${cov}" -lt 60 ]; then
+            echo "Coverage < 60% => fail"
+            exit 1
           fi
 
       - name: Upload JaCoCo HTML report
@@ -72,7 +104,7 @@ jobs:
           name: jacoco-html
           path: target/site/jacoco/
 
-
+      # --- Build & push Docker ---
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
