@@ -29,12 +29,19 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      # --- Tests + rapports ---
-      - name: Build & test
-        run: ./mvnw -B -Dspring.profiles.active=test -DskipTests=false test
+      # --- Tests + JaCoCo en une passe ---
+      - name: Tests + JaCoCo
+        run: ./mvnw -B -Dspring.profiles.active=test -Djacoco.skip=false clean verify jacoco:report
 
-      - name: Generate JaCoCo report (XML + HTML)
-        run: ./mvnw -B -Dspring.profiles.active=test jacoco:report
+      - name: Check jacoco.xml exists and not empty
+        shell: bash
+        run: |
+          XML=target/site/jacoco/jacoco.xml
+          if [ ! -s "$XML" ]; then
+            echo "jacoco.xml manquant ou vide: $XML" >&2
+            ls -lah target/site || true
+            exit 1
+          fi
 
       # === Tableau résumé des tests (table only) ===
       - name: Job Summary - Tests table only
@@ -45,10 +52,6 @@ jobs:
           shopt -s globstar nullglob
           files=( **/target/surefire-reports/TEST-*.xml )
           echo "### Tests Summary" >> $GITHUB_STEP_SUMMARY
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "_No test reports found._" >> $GITHUB_STEP_SUMMARY
-            exit 0
-          fi
           total=0; failures=0; errors=0; skipped=0; time=0
           for f in "${files[@]}"; do
             t=$(grep -o 'tests="[0-9]\+"'     "$f" | head -1 | tr -cd '0-9'); total=$(( total + t ))
@@ -73,25 +76,19 @@ jobs:
         run: |
           set -e
           XML="target/site/jacoco/jacoco.xml"
-          if [ ! -f "$XML" ]; then
-            echo "jacoco.xml not found at $XML"; exit 1
-          fi
-
           get_cov () {
             local TYPE="$1"
-            # somme des missed/covered sur tous les <counter type="TYPE" .../>
             read MISSED COVERED < <(grep -o "type=\"$TYPE\"[^>]*/>" "$XML" | \
               sed -E 's/.*missed="([0-9]+)".*covered="([0-9]+)".*/\1 \2/' | \
               awk '{m+=$1;c+=$2} END {print (m?m:0), (c?c:0)}')
             local TOTAL=$((MISSED + COVERED))
             if [ "$TOTAL" -eq 0 ]; then
-              echo "100 0 0 0"  # 100%, covered=0, missed=0, total=0
+              echo "100 0 0 0"
             else
               local PCT=$(( 100 * COVERED / TOTAL ))
               echo "$PCT $COVERED $MISSED $TOTAL"
             fi
           }
-
           read BR_PCT BR_C BR_M BR_T < <(get_cov "BRANCH")
           read IN_PCT IN_C IN_M IN_T < <(get_cov "INSTRUCTION")
 
@@ -105,22 +102,9 @@ jobs:
           } >> $GITHUB_STEP_SUMMARY
 
           FAIL=0
-          if [ "$BR_PCT" -lt 60 ]; then echo "Branches < 60%"; FAIL=1; fi
-          if [ "$IN_PCT" -lt 60 ]; then echo "Instructions < 60%"; FAIL=1; fi
+          [ "$BR_PCT" -lt 60 ] && echo "Branches < 60%" && FAIL=1
+          [ "$IN_PCT" -lt 60 ] && echo "Instructions < 60%" && FAIL=1
           [ "$FAIL" -eq 0 ] || exit 1
-
-      # (Optionnel) Tableau global CodeCoverageSummary pour aperçu (badge unique)
-      - name: Coverage Table (irongut)
-        if: always()
-        uses: irongut/CodeCoverageSummary@v1.3.0
-        with:
-          filename: '**/target/site/jacoco/jacoco.xml'
-          badge: false           # on évite le badge unique (basé lignes)
-          format: 'markdown'
-          output: 'both'
-          hide_complexity: true
-          indicators: true
-          thresholds: '60 60'    # mapping interne: Branches / Lines (sans effet sur notre enforcement)
 
       - name: Upload JaCoCo HTML report
         uses: actions/upload-artifact@v4
@@ -129,7 +113,7 @@ jobs:
           name: jacoco-html
           path: target/site/jacoco/
 
-      # --- Build & push Docker ---
+      # --- Build & Push Docker image ---
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
