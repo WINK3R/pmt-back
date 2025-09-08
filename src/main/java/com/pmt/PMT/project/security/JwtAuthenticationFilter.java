@@ -26,12 +26,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserDetailsService userDetailsService;
 
     private final List<String> publicPaths = List.of(
-            "/auth/register",
-            "/auth/login",
-            "/v3/api-docs",
-            "/swagger-ui",
-            "/swagger-ui.html",
-            "/h2-console"
+            "/api/auth/register",
+            "/api/auth/login",
+            "/api/v3/api-docs",
+            "/api/swagger-ui",
+            "/api/swagger-ui.html",
+            "/api/h2-console"
     );
 
     public JwtAuthenticationFilter(JwtService jwtService, UserDetailsService userDetailsService) {
