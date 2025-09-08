@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 
 import java.time.Instant;
@@ -31,6 +32,7 @@ class TaskServiceTest {
     @Mock private ProjectRepository projectRepository;
     @Mock private UserRepository userRepository;
     @Mock private ProjectMembershipRepository projectMembershipRepository;
+    @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private Authentication authentication;
 
     private Task task;
