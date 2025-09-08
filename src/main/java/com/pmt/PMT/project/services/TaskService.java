@@ -3,12 +3,14 @@ package com.pmt.PMT.project.services;
 import com.pmt.PMT.project.dto.TaskMinimalRequest;
 import com.pmt.PMT.project.dto.TaskResponse;
 import com.pmt.PMT.project.dto.UserSummary;
+import com.pmt.PMT.project.events.TaskAssigneeChangedEvent;
 import com.pmt.PMT.project.models.*;
 import com.pmt.PMT.project.repositories.ProjectMembershipRepository;
 import com.pmt.PMT.project.repositories.ProjectRepository;
 import com.pmt.PMT.project.repositories.TaskRepository;
 import com.pmt.PMT.project.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -31,6 +34,8 @@ public class TaskService {
     private TaskHistoryService taskHistoryService;
     @Autowired
     private ProjectMembershipRepository projectMembershipRepository;
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     public List<TaskResponse> getByProjectId(UUID projectId) {
         return taskRepository.findByProjectId(projectId)
@@ -56,12 +61,12 @@ public class TaskService {
         var    oldLabel       = task.getLabel();
         UUID   oldAssigneeId  = task.getAssignee() != null ? task.getAssignee().getId() : null;
 
-        if (req.title() != null)       task.setTitle(req.title());
+        if (req.title() != null)        task.setTitle(req.title());
         if (req.description() != null)  task.setDescription(req.description());
         task.setDueDate(req.dueDate());
-        if (req.priority() != null)    task.setPriority(req.priority());
-        if (req.status() != null)      task.setStatus(req.status());
-        if (req.label() != null)       task.setLabel(req.label());
+        if (req.priority() != null)     task.setPriority(req.priority());
+        if (req.status() != null)       task.setStatus(req.status());
+        if (req.label() != null)        task.setLabel(req.label());
         if (req.assigneeId() == null) {
             task.setAssignee(null);
         } else {
@@ -89,6 +94,23 @@ public class TaskService {
 
         taskHistoryService.saveAll(history);
 
+        boolean assigneeChanged = !Objects.equals(oldAssigneeId, newAssigneeId);
+        if (assigneeChanged && updated.getAssignee() != null) {
+            String assigneeEmail = updated.getAssignee().getEmail();
+            String assigneeName  = updated.getAssignee().getUsername() != null
+                    ? updated.getAssignee().getUsername()
+                    : updated.getAssignee().getEmail();
+
+            eventPublisher.publishEvent(
+                    new TaskAssigneeChangedEvent(
+                            updated.getId(),
+                            updated.getTitle(),
+                            updatedBy.getUsername() != null ? updatedBy.getUsername() : updatedBy.getEmail(),
+                            assigneeEmail,
+                            assigneeName
+                    )
+            );
+        }
         return new TaskResponse(updated);
     }
 
