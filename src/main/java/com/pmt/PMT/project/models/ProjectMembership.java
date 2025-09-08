@@ -1,9 +1,14 @@
 package com.pmt.PMT.project.models;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.Instant;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(
         name = "project_memberships",
@@ -34,19 +39,5 @@ public class ProjectMembership {
 
     public ProjectMembership() {}
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
-
-    public Project getProject() { return project; }
-    public void setProject(Project project) { this.project = project; }
-
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
-
-    public Role getRole() { return role; }
-    public void setRole(Role role) { this.role = role; }
-
-    public Instant getJoinedAt() { return joinedAt; }
-    public void setJoinedAt(Instant joinedAt) { this.joinedAt = joinedAt; }
 }
 

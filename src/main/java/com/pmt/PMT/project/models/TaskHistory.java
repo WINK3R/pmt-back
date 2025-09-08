@@ -1,13 +1,16 @@
 package com.pmt.PMT.project.models;
 
-import com.pmt.PMT.project.dto.HistoryValue;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(name = "task_history")
 public class TaskHistory {
@@ -39,24 +42,4 @@ public class TaskHistory {
 
     public TaskHistory() {}
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
-
-    public Task getTask() { return task; }
-    public void setTask(Task task) { this.task = task; }
-
-    public User getChangedBy() { return changedBy; }
-    public void setChangedBy(User changedBy) { this.changedBy = changedBy; }
-
-    public Instant getChangedAt() { return changedAt; }
-    public void setChangedAt(Instant changedAt) { this.changedAt = changedAt; }
-
-    public String getField() { return field; }
-    public void setField(String field) { this.field = field; }
-
-    public String getOldValue() { return oldValue; }
-    public void setOldValue(String oldValue) { this.oldValue = oldValue; }
-
-    public String getNewValue() { return newValue; }
-    public void setNewValue(String newValue) { this.newValue = newValue; }
 }

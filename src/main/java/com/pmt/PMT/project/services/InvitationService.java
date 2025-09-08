@@ -82,7 +82,6 @@ public class InvitationService {
         invitation.setInviter(inviter);
         invitation.setInvited(invited);
         invitation.setStatus(Invitation.Status.PENDING);
-        invitation.setToken(UUID.randomUUID().toString());
         invitation.setCreatedAt(Instant.now());
 
         return invitationRepository.save(invitation);

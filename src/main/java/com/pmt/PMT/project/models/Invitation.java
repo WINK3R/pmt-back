@@ -1,9 +1,14 @@
 package com.pmt.PMT.project.models;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.Instant;
 import java.util.UUID;
 
+@Setter
+@Getter
 @Entity
 @Table(
         name = "invitations",
@@ -41,9 +46,6 @@ public class Invitation {
     @Column(nullable = false)
     private Status status;
 
-    @Column(nullable = false, unique = true)
-    private String token;
-
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -52,27 +54,4 @@ public class Invitation {
 
     public Invitation() {}
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
-
-    public Project getProject() { return project; }
-    public void setProject(Project project) { this.project = project; }
-
-    public User getInvited() { return invited; }
-    public void setInvited(User invited) { this.invited = invited; }
-
-    public User getInviter() { return inviter; }
-    public void setInviter(User inviter) { this.inviter = inviter; }
-
-    public Status getStatus() { return status; }
-    public void setStatus(Status status) { this.status = status; }
-
-    public String getToken() { return token; }
-    public void setToken(String token) { this.token = token; }
-
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-
-    public Instant getAcceptedAt() { return acceptedAt; }
-    public void setAcceptedAt(Instant acceptedAt) { this.acceptedAt = acceptedAt; }
 }

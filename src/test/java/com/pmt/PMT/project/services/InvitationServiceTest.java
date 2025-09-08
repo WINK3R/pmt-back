@@ -198,8 +198,6 @@ class InvitationServiceTest {
         when(invitationRepository.save(any(Invitation.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Invitation result = invitationService.create(req, authentication);
-
-        assertNotNull(result.getToken());
         assertEquals(Invitation.Status.PENDING, result.getStatus());
     }
 
