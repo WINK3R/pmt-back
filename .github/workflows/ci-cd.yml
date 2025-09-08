@@ -25,7 +25,7 @@ jobs:
           cache: 'maven'
 
       - name: Build & test
-        run: ./mvnw -B -DskipTests=false verify
+        run: ./mvnw -B -Dspring.profiles.active=test -DskipTests=false test
 
       - name: Login to Docker Hub
         if: github.event_name != 'pull_request'
