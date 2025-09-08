@@ -175,4 +175,70 @@ class ProjectServiceTest {
         assertThrows(UsernameNotFoundException.class,
                 () -> projectService.create(req, authentication));
     }
+
+    @Test
+    void update_shouldUpdateProject_whenUserIsAdminOrOwner() {
+        ProjectMinimalRequest req = new ProjectMinimalRequest(UUID.randomUUID(), "Updated Name", "Updated Description", "Development");
+
+        when(authentication.getName()).thenReturn("john@test.com");
+        when(userRepository.findByEmail("john@test.com")).thenReturn(Optional.of(user));
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
+        when(projectMembershipService.getMemberResponsesByProjectId(projectId))
+                .thenReturn(List.of(new ProjectMemberResponse(
+                        UUID.randomUUID(),
+                        ProjectMembership.Role.ADMIN,
+                        Instant.now(),
+                        new UserSummary(user)
+                )));
+        when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ProjectResponse res = projectService.update(projectId, req, authentication);
+
+        assertEquals("Updated Name", res.name());
+        assertEquals("Updated Description", res.description());
+        assertEquals("Development", res.tag());
+    }
+
+    @Test
+    void update_shouldThrow_whenUserNotFound() {
+        when(authentication.getName()).thenReturn("john@test.com");
+        when(userRepository.findByEmail("john@test.com")).thenReturn(Optional.empty());
+
+        ProjectMinimalRequest req = new ProjectMinimalRequest(UUID.randomUUID(), "Updated Name", "Updated Description", "Development");
+
+        assertThrows(UsernameNotFoundException.class,
+                () -> projectService.update(projectId, req, authentication));
+    }
+
+    @Test
+    void update_shouldThrow_whenProjectNotFound() {
+        when(authentication.getName()).thenReturn("john@test.com");
+        when(userRepository.findByEmail("john@test.com")).thenReturn(Optional.of(user));
+        when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
+
+        ProjectMinimalRequest req = new ProjectMinimalRequest(UUID.randomUUID(), "Updated Name", "Updated Description", "Development");
+
+        assertThrows(EntityNotFoundException.class,
+                () -> projectService.update(projectId, req, authentication));
+    }
+
+    @Test
+    void update_shouldThrow_whenUserIsNotOwnerOrAdmin() {
+        ProjectMinimalRequest req = new ProjectMinimalRequest(UUID.randomUUID(), "Updated Name", "Updated Description", "Development");
+
+        when(authentication.getName()).thenReturn("john@test.com");
+        when(userRepository.findByEmail("john@test.com")).thenReturn(Optional.of(user));
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(project));
+        when(projectMembershipService.getMemberResponsesByProjectId(projectId))
+                .thenReturn(List.of(new ProjectMemberResponse(
+                        UUID.randomUUID(),
+                        ProjectMembership.Role.MEMBER,
+                        Instant.now(),
+                        new UserSummary(user)
+                )));
+
+        assertThrows(SecurityException.class,
+                () -> projectService.update(projectId, req, authentication));
+    }
+
 }
