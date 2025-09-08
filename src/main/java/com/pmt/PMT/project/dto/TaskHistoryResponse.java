@@ -1,11 +1,9 @@
 package com.pmt.PMT.project.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.pmt.PMT.project.models.TaskHistory;
 import java.time.Instant;
 import java.util.UUID;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public record TaskHistoryResponse(
         UUID id,
         Instant changedAt,

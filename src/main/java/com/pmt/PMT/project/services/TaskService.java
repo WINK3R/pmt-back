@@ -63,13 +63,11 @@ public class TaskService {
 
         if (req.title() != null)        task.setTitle(req.title());
         if (req.description() != null)  task.setDescription(req.description());
-        task.setDueDate(req.dueDate());
+        if (req.dueDate() != null)      task.setDueDate(req.dueDate());
         if (req.priority() != null)     task.setPriority(req.priority());
         if (req.status() != null)       task.setStatus(req.status());
         if (req.label() != null)        task.setLabel(req.label());
-        if (req.assigneeId() == null) {
-            task.setAssignee(null);
-        } else {
+        if (req.assigneeId() != null) {
             User assignee = userRepository.findById(req.assigneeId())
                     .orElseThrow(() -> new IllegalArgumentException("Invalid assignee ID"));
             task.setAssignee(assignee);
